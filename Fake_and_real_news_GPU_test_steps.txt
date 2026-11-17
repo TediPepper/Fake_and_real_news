@@ -1,0 +1,125 @@
+FAKE AND REAL NEWS BERT PROJECT - GPU TEST CHECKLIST
+====================================================
+
+The project is available at:
+https://github.com/TediPepper/Fake_and_real_news
+
+These steps assume Windows PowerShell and an NVIDIA GPU. If you use Linux,
+activate the virtual environment with `source .venv/bin/activate` and use
+`python` instead of `.\.venv\Scripts\python.exe`.
+
+1. CHECK THE GPU AND PYTHON
+---------------------------
+
+Open PowerShell and check that the NVIDIA driver sees the GPU:
+
+    nvidia-smi
+
+Install Python 3.11 (64-bit) if it is not already installed. The project needs
+Python 3.10 or later.
+
+2. CLONE THE PROJECT
+--------------------
+
+Choose a folder for the project, then run:
+
+    git clone https://github.com/TediPepper/Fake_and_real_news.git
+    cd Fake_and_real_news
+
+3. CREATE AND PREPARE A VIRTUAL ENVIRONMENT
+-------------------------------------------
+
+    py -3.11 -m venv .venv
+    .\.venv\Scripts\python.exe -m pip install --upgrade pip
+
+Install a CUDA-enabled PyTorch build that matches the machine by using the
+official selector at:
+
+    https://pytorch.org/get-started/locally/
+
+Run the PyTorch install command shown by the selector. Then install the rest
+of the project dependencies:
+
+    .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+4. CONFIRM PYTORCH CAN USE THE GPU
+----------------------------------
+
+    .\.venv\Scripts\python.exe -c "import torch; print('CUDA available:', torch.cuda.is_available()); print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'not detected')"
+
+Continue only if `CUDA available: True` and the expected GPU name is printed.
+If it says False, install the correct PyTorch build using the official
+selector above, then repeat this check.
+
+5. ADD THE DATASET FILES
+------------------------
+
+Get the Real and Fake News dataset files from the dataset source. The project
+expects these exact names:
+
+    Fake.csv
+    True.csv
+
+From the project folder, create the data directory:
+
+    New-Item -ItemType Directory -Force data\raw
+
+Copy the two CSV files into `data\raw\`, so the full paths are:
+
+    data\raw\Fake.csv
+    data\raw\True.csv
+
+The CSVs should have a `text` and/or `title` column. They are intentionally
+excluded from Git; do not commit them.
+
+6. RUN THE TESTS
+----------------
+
+    $env:PYTHONPATH = "src"
+    .\.venv\Scripts\python.exe -m unittest discover -s tests -v
+
+Confirm the tests finish with `OK`.
+
+7. TRAIN AND EVALUATE BERT
+--------------------------
+
+Start with the conservative defaults (batch size 2, max length 128):
+
+    $env:PYTHONPATH = "src"
+    .\.venv\Scripts\python.exe -m fake_news_detector.train
+
+The first run downloads the pretrained BERT model and may take some time.
+Training reports evaluation metrics and saves the trained model and metrics
+to:
+
+    models\fake-news-bert\
+
+After confirming the run works, a GPU with enough memory may allow a larger
+batch and longer input, for example:
+
+    .\.venv\Scripts\python.exe -m fake_news_detector.train --batch-size 8 --max-length 256
+
+If training reports CUDA out-of-memory, stop it and retry with a smaller
+batch size, such as 1 or 2, and max length 128.
+
+8. TRY A PREDICTION
+-------------------
+
+After training completes:
+
+    $env:PYTHONPATH = "src"
+    .\.venv\Scripts\python.exe -m fake_news_detector.predict --text "Paste article text here"
+
+Or classify a UTF-8 text file:
+
+    .\.venv\Scripts\python.exe -m fake_news_detector.predict --file article.txt
+
+IMPORTANT LIMITATION
+-------------------
+
+The model predicts the dataset's FAKE or REAL label based on learned text
+patterns. It does not independently verify facts or prove that an article is
+true or false. Review reliable sources before drawing conclusions.
+
+The virtual environment, dataset files, and trained model are excluded from
+Git. The source code and instructions are in the GitHub repository.
